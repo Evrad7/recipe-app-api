@@ -1,0 +1,35 @@
+services:
+
+  # db:
+  #   image: postgres:18-alpine3.23
+  #   environment:
+  #     - POSTGRES_USER=django
+  #     - POSTGRES_PASSWORD=django
+  #     - POSTGRES_DB=recipe
+  #   ports:
+  #     - 5432:5432
+  #   volumes:
+  #     - db_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U django"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   restart: unless-stopped
+  app: 
+    build:
+      context: .
+      args:
+        - DEV=true
+    ports:
+      - 8000:8000
+    volumes:
+      - ./app:/app
+    command: >
+      python manage.py runserver 0.0.0.0:8000
+    # depends_on:
+    #   - db
+volumes:
+  db_data:
+
+      
