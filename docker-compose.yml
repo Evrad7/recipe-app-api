@@ -1,21 +1,21 @@
 services:
 
-  # db:
-  #   image: postgres:18-alpine3.23
-  #   environment:
-  #     - POSTGRES_USER=django
-  #     - POSTGRES_PASSWORD=django
-  #     - POSTGRES_DB=recipe
-  #   ports:
-  #     - 5432:5432
-  #   volumes:
-  #     - db_data:/var/lib/postgresql/data
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U django"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   restart: unless-stopped
+  db:
+    image: postgres:18-alpine3.23
+    environment:
+      - POSTGRES_USER=django
+      - POSTGRES_PASSWORD=django
+      - POSTGRES_DB=recipe
+    ports:
+      - 5432:5432
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U django -d recipe"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
   app: 
     build:
       context: .
@@ -25,10 +25,18 @@ services:
       - 8000:8000
     volumes:
       - ./app:/app
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=recipe
+      - DB_USER=django
+      - DB_PASSWORD=django
     command: >
       python manage.py runserver 0.0.0.0:8000
-    # depends_on:
-    #   - db
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   db_data:
 
