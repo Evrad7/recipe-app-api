@@ -16,5 +16,6 @@ class Command(BaseCommand):
                 break
             except (OperationalError, PsyCopg2Error):
                 self.stdout.write(
-                    "Database is not available yet, waiting 1s to retry")
+                    "Database is not available yet, waiting 1s to retry"
+                )
                 time.sleep(1)
