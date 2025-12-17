@@ -27,7 +27,8 @@ class PublicUserTestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         user: User = get_user_model().objects.get(
-            email=self.payload["email"])  # type: ignore
+            email=self.payload["email"]
+        )  # type: ignore
         self.assertTrue(user.check_password(self.payload["password"]))
         self.assertEqual(user.name, data["name"])
         self.assertEqual(user.email, data["email"])

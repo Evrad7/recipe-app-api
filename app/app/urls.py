@@ -37,4 +37,5 @@ urlpatterns = [
         name="api-redocs",
     ),
     path("api/users/", include("user.urls")),
+    path("api/", include("recipe.urls")),
 ]
