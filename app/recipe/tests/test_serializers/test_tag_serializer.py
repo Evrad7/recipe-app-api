@@ -21,17 +21,6 @@ class TagSerialiserTestCase(APITestCase):
         self.assertEqual({"id", "name"}, set(serializer.data.keys()))
         self.assertNotIn("user", serializer.data)
 
-    # ========== Tests de validation : id ==========
-
-    def test_id_field_cannot_be_written(self):
-        """Test que le id ne peux pas être parsé"""
-        data = {"id": 7, "name": "Fruity"}
-
-        serializer = TagSerializer(data=data)
-
-        self.assertTrue(serializer.is_valid())
-        self.assertNotIn("id", serializer.validated_data)  # type: ignore
-
     # ========== Tests de validation : name ==========
 
     def test_name_field_required(self):

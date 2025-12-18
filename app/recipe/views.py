@@ -1,8 +1,17 @@
 from rest_framework import permissions, serializers
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, GenericViewSet
+from rest_framework.mixins import (
+    ListModelMixin,
+    UpdateModelMixin,
+    DestroyModelMixin,
+)
 
-from core.models import Recipe
-from recipe.serializers import DetailRecipeSerializer, RecipeSerializer
+from core.models import Recipe, Tag
+from recipe.serializers import (
+    DetailRecipeSerializer,
+    RecipeSerializer,
+    TagSerializer,
+)
 
 
 class RecipeViewSet(ModelViewSet):
@@ -20,3 +29,14 @@ class RecipeViewSet(ModelViewSet):
         if self.action == "list":
             return RecipeSerializer
         return self.serializer_class
+
+
+class TagViewSet(
+    UpdateModelMixin, ListModelMixin, DestroyModelMixin, GenericViewSet
+):
+    serializer_class = TagSerializer
+    queryset = Tag.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):  # type: ignore
+        return Tag.objects.filter(user=self.request.user)

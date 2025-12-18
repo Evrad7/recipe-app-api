@@ -6,7 +6,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from core.models import Recipe
+from core.models import Recipe, Tag
 
 
 def list_recipe_url():
@@ -244,3 +244,57 @@ class PrivateRecipeViewSetTestCase(APITestCase):
 
         response = self.client.delete(detail_recipe_url(recipe.pk))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_create_recipe_with_tags(self):
+        payload = {
+            "title": "Mozarilla",
+            "description": "Long description of Mozarilla",
+            "duration_minute": 5,
+            "price": "10.5",
+            "tags": [{"name": "Fruit"}, {"name": "Meet"}],
+        }
+
+        response = self.client.post(list_recipe_url(), payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        recipe: Recipe = Recipe.objects.get(
+            user=self.user, title=payload["title"]
+        )
+        data = response.data  # type: ignore
+        tags = recipe.tags.order_by("name")
+        self.assertEqual(recipe.pk, data["id"])
+        self.assertSetEqual(
+            set(tags.values_list("name", flat=True)),
+            {tag["name"] for tag in payload["tags"]},
+        )
+        self.assertSetEqual(
+            {tag["name"] for tag in data["tags"]},
+            {tag["name"] for tag in payload["tags"]},
+        )
+
+    def test_update_recipe_with_tags(self):
+        tag = Tag.objects.create(user=self.user, name="Fruit")
+        recipe = create_recipe(self.user)
+        payload = {
+            "title": "Mozarilla",
+            "tags": [{"name": tag.name}, {"name": "Meet"}],
+        }
+
+        response = self.client.patch(
+            detail_recipe_url(recipe.pk), payload, format="json"
+        )
+
+        self.assertTrue(response.status_code, status.HTTP_200_OK)
+        recipe.refresh_from_db()
+        data = response.data  # type: ignore
+        tags = recipe.tags.order_by("name")
+        self.assertEqual(recipe.pk, data["id"])
+        self.assertIn(tag, tags)
+        self.assertEqual(
+            set(tags.values_list("name", flat=True)),
+            {tag["name"] for tag in payload["tags"]},
+        )
+        self.assertSetEqual(
+            {tag["name"] for tag in data["tags"]},
+            {tag["name"] for tag in payload["tags"]},
+        )

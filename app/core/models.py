@@ -56,6 +56,7 @@ class Recipe(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
+        editable=False,
         verbose_name=_("user"),
     )
     title = models.CharField(max_length=255, verbose_name=_("title"))
@@ -70,6 +71,7 @@ class Recipe(models.Model):
         validators=[MinValueValidator(0)],
     )
     link = models.URLField(null=True, blank=True, verbose_name=_("link"))
+    tags = models.ManyToManyField("Tag", verbose_name=_("tags"))
 
     def __str__(self) -> str:
         return self.title
@@ -82,6 +84,7 @@ class Tag(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
+        editable=False,
         verbose_name=_("user"),
     )
     name = models.CharField(max_length=128, verbose_name=_("name"))
@@ -90,4 +93,4 @@ class Tag(models.Model):
         return self.name
 
     class Meta:
-        ordering = ["-name"]
+        ordering = ["name"]
