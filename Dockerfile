@@ -15,9 +15,9 @@ COPY ./requirements.dev.txt /tmp/requirements.dev.txt
 RUN python -m venv /py
 
 RUN /py/bin/pip install --upgrade pip && \
-apk add --update --no-cache postgresql-client  && \
+apk add --update --no-cache postgresql-client jpeg-dev  && \
 apk add --update --no-cache --virtual .tmp-build-deps \
-build-base postgresql-dev musl-dev &&  \
+build-base postgresql-dev musl-dev zlib zlib-dev &&  \
 /py/bin/pip install -r /tmp/requirements.txt && \
 if [ "$DEV" = "true" ]; \
    then /py/bin/pip install -r /tmp/requirements.dev.txt; \

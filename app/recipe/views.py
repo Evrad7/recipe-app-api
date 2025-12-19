@@ -6,9 +6,10 @@ from rest_framework.mixins import (
     DestroyModelMixin,
 )
 
-from core.models import Recipe, Tag
+from core.models import Ingredient, Recipe, Tag
 from recipe.serializers import (
     DetailRecipeSerializer,
+    IngredientSerializer,
     RecipeSerializer,
     TagSerializer,
 )
@@ -40,3 +41,14 @@ class TagViewSet(
 
     def get_queryset(self):  # type: ignore
         return Tag.objects.filter(user=self.request.user)
+
+
+class IngredientViewSet(
+    UpdateModelMixin, ListModelMixin, DestroyModelMixin, GenericViewSet
+):
+    serializer_class = IngredientSerializer
+    queryset = Ingredient.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):  # type: ignore
+        return Ingredient.objects.filter(user=self.request.user)

@@ -2,7 +2,7 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 
-from core.models import Recipe, Tag
+from core.models import Ingredient, Recipe, Tag
 from recipe.serializers import RecipeSerializer
 
 
@@ -22,6 +22,7 @@ class RecipeSerializerTestCase(APITestCase):
             "price": "5.90",
             "link": "https://example.com",
             "tags": [],
+            "ingredients": [],
         }
 
         self.recipe = Recipe.objects.create(
@@ -47,6 +48,7 @@ class RecipeSerializerTestCase(APITestCase):
             "price",
             "link",
             "tags",
+            "ingredients",
         }
         self.assertEqual(expected_fields, set(data.keys()))
 
@@ -54,10 +56,13 @@ class RecipeSerializerTestCase(APITestCase):
 
     def test_serializer_field_values(self):
         """Test que les valeurs sérialisées sont correctes"""
-        serializer = RecipeSerializer(self.recipe)
         tag1 = Tag.objects.create(user=self.user, name="Africa")
         tag2 = Tag.objects.create(user=self.user, name="Indian")
+        ingredient1 = Ingredient.objects.create(user=self.user, name="Vanilla")
+        ingredient2 = Ingredient.objects.create(user=self.user, name="Salt")
         self.recipe.tags.set((tag1, tag2))
+        self.recipe.ingredients.set((ingredient1, ingredient2))
+        serializer = RecipeSerializer(self.recipe)
 
         data = serializer.data
 
@@ -68,6 +73,14 @@ class RecipeSerializerTestCase(APITestCase):
         self.assertEqual(
             data["tags"],
             list(Tag.objects.filter(user=self.user).values("id", "name")),
+            self.assertEqual(
+                data["ingredients"],
+                list(
+                    Ingredient.objects.filter(user=self.user).values(
+                        "id", "name"
+                    )
+                ),
+            ),
         )
 
     # ========== Tests de validation : title ==========
@@ -217,7 +230,7 @@ class RecipeSerializerTestCase(APITestCase):
 
                 self.assertTrue(serializer.is_valid())
 
-    # ========== Tests de validation : link ==========
+    # ========== Tests de validation : tags ==========
 
     def test_tags_not_required(self):
         """Test que les tags ne sont pas obligatoires."""
@@ -228,3 +241,15 @@ class RecipeSerializerTestCase(APITestCase):
 
         self.assertTrue(serializer.is_valid())
         self.assertNotIn("tags", serializer.data)
+
+    # ========== Tests de validation : tags ==========
+
+    def test_ingredients_not_required(self):
+        """Test que les ingredients ne sont pas obligatoires."""
+        data = self.valid_data.copy()
+        del data["ingredients"]
+
+        serializer = RecipeSerializer(data=data)
+
+        self.assertTrue(serializer.is_valid())
+        self.assertNotIn("ingredients", serializer.data)

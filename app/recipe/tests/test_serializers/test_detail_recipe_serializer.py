@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 
-from core.models import Recipe, Tag
+from core.models import Ingredient, Recipe, Tag
 from recipe.serializers import DetailRecipeSerializer
 
 
@@ -49,6 +49,7 @@ class DetailRecipeSerializerTestCase(APITestCase):
             "price",
             "link",
             "tags",
+            "ingredients",
         }
         self.assertEqual(expected_fields, set(data.keys()))
 
@@ -83,13 +84,8 @@ class DetailRecipeSerializerTestCase(APITestCase):
 
     def test_create_recipe_with_tag(self):
         """Test that serializer create recipe with tags with sucess"""
-        data = {
-            "title": "Tortilla",
-            "description": "Tortillas dishes, follow intructions ...",
-            "price": Decimal("5.8"),
-            "duration_minute": 8,
-            "tags": [{"name": "Fruit"}, {"name": "Meet"}],
-        }
+        data = self.valid_data.copy()
+        data["tags"] = [{"name": "Fruit"}, {"name": "Meet"}]
         serializer = DetailRecipeSerializer(
             data=data, context={"request": self.mocked_request}
         )
@@ -102,7 +98,7 @@ class DetailRecipeSerializerTestCase(APITestCase):
         self.assertEqual(tags.count(), 2)
         self.assertEqual(recipe.title, data["title"])
         self.assertEqual(recipe.description, data["description"])
-        self.assertEqual(recipe.price, data["price"])
+        self.assertEqual(recipe.price, Decimal(data["price"]))
         self.assertEqual(recipe.duration_minute, data["duration_minute"])
         for i, tag in enumerate(tags):
             self.assertEqual(tag.name, data["tags"][i]["name"])
@@ -111,13 +107,9 @@ class DetailRecipeSerializerTestCase(APITestCase):
         """Test that serializer create recipe with tag that already
         exists with sucess"""
         tag = Tag.objects.create(user=self.user, name="Fruit")
-        data = {
-            "title": "Tortilla",
-            "description": "Tortillas dishes, follow intructions ...",
-            "price": Decimal("5.8"),
-            "duration_minute": 8,
-            "tags": [{"name": tag.name}, {"name": "Meet"}],
-        }
+        data = self.valid_data.copy()
+        data["tags"] = [{"name": tag.name}, {"name": "Meet"}]
+
         serializer = DetailRecipeSerializer(
             data=data, context={"request": self.mocked_request}
         )
@@ -134,13 +126,7 @@ class DetailRecipeSerializerTestCase(APITestCase):
 
     def test_update_recipe_with_tag(self):
         """Test that serializer update recipe with tag successfully."""
-        recipe = Recipe.objects.create(
-            user=self.user,
-            title="Pasta",
-            description="Pasta instructions ...",
-            price=Decimal("5.9"),
-            duration_minute=20,
-        )
+        recipe = Recipe.objects.create(user=self.user, **self.valid_data)
         data = {
             "title": "Pasta gold updated",
             "tags": [{"name": "France"}, {"name": "India"}],
@@ -165,13 +151,7 @@ class DetailRecipeSerializerTestCase(APITestCase):
     def test_update_recipe_with_existing_tag(self):
         """Test that serializer update recipe with existing tag successfully"""
         tag = Tag.objects.create(user=self.user, name="Fruity")
-        recipe = Recipe.objects.create(
-            user=self.user,
-            title="Pasta",
-            description="Pasta instructions ...",
-            price=Decimal("5.9"),
-            duration_minute=20,
-        )
+        recipe = Recipe.objects.create(user=self.user, **self.valid_data)
         recipe.tags.add(tag)
         data = {
             "title": "Totillas",
@@ -197,13 +177,7 @@ class DetailRecipeSerializerTestCase(APITestCase):
     def test_update_recipe_with_empty_tags(self):
         """Test clear tags when updating whith empty tags"""
         tag = Tag.objects.create(user=self.user, name="Fruity")
-        recipe = Recipe.objects.create(
-            user=self.user,
-            title="Pasta",
-            description="Pasta instructions ...",
-            price=Decimal("5.9"),
-            duration_minute=20,
-        )
+        recipe = Recipe.objects.create(user=self.user, **self.valid_data)
         recipe.tags.add(tag)
         data = {"title": "Rosta bouill", "tags": []}
         serializer = DetailRecipeSerializer(
@@ -217,3 +191,110 @@ class DetailRecipeSerializerTestCase(APITestCase):
         serializer.save(user=self.user)
 
         self.assertFalse(recipe.tags.exists())
+
+    def test_create_recipe_with_ingredients(self):
+        """Test that serializer create recipe with ingredients successfully"""
+        data = self.valid_data.copy()
+        data["ingredients"] = [{"name": "Salt"}, {"name": "Fish"}]
+        serializer = DetailRecipeSerializer(
+            data=data, context={"request": self.mocked_request}
+        )
+        self.assertTrue(serializer.is_valid())
+
+        serializer.save(user=self.user)
+
+        recipe = Recipe.objects.get(user=self.user, title=data["title"])
+        ingredients = recipe.ingredients.order_by("name")
+        self.assertEqual(ingredients.count(), 2)
+        for ingredient in data["ingredients"]:
+            count = ingredients.filter(name=ingredient["name"]).count()
+            self.assertEqual(count, 1)
+
+    def test_create_recipe_with_existing_ingredients(self):
+        """Test that serializer create recipe with existing ingredient"""
+        ingredient = Ingredient.objects.create(user=self.user, name="Butter")
+        data = self.valid_data.copy()
+        data["ingredients"] = [{"name": ingredient.name}, {"name": "Fish"}]
+
+        serializer = DetailRecipeSerializer(
+            data=data, context={"request": self.mocked_request}
+        )
+        self.assertTrue(serializer.is_valid())
+
+        serializer.save(user=self.user)
+
+        recipe = Recipe.objects.get(user=self.user, title=data["title"])
+        ingredients = recipe.ingredients.order_by("name")
+        self.assertEqual(ingredients.count(), 2)
+        self.assertIn(ingredient, ingredients)
+        for ingredient in data["ingredients"]:
+            count = ingredients.filter(name=ingredient["name"]).count()
+            self.assertEqual(count, 1)
+
+    def test_update_recipe_with_ingredients(self):
+        """Test update recipe with new ingredients"""
+        recipe_data = self.valid_data.copy()
+        recipe = Recipe.objects.create(user=self.user, **recipe_data)
+        data = {"ingredients": [{"name": "Valilla"}, {"name": "Butter"}]}
+        serializer = DetailRecipeSerializer(
+            recipe,
+            data=data,
+            partial=True,
+            context={"request": self.mocked_request},
+        )
+        serializer.is_valid(raise_exception=True)
+
+        serializer.save()
+
+        ingredients = recipe.ingredients.order_by("name")
+        self.assertEqual(ingredients.count(), 2)
+        for ingredient in data["ingredients"]:
+            count = ingredients.filter(name=ingredient["name"]).count()
+            self.assertEqual(count, 1)
+
+    def test_udpate_recipe_with_existing_ingredients(self):
+        """Test update recipe with and existant ingredient"""
+        recipe_data = self.valid_data.copy()
+        ingredient1 = Ingredient.objects.create(user=self.user, name="Sugar")
+        recipe = Recipe.objects.create(user=self.user, **recipe_data)
+        recipe.ingredients.add(ingredient1)
+        data = {
+            "ingredients": [{"name": ingredient1.name}, {"name": "Butter"}]
+        }
+        serializer = DetailRecipeSerializer(
+            recipe,
+            data=data,
+            partial=True,
+            context={"request": self.mocked_request},
+        )
+        serializer.is_valid(raise_exception=True)
+
+        serializer.save()
+
+        ingredients = recipe.ingredients.order_by("name")
+        self.assertEqual(ingredients.count(), 2)
+        self.assertIn(ingredient1, ingredients)
+        for ingredient in data["ingredients"]:
+            count = ingredients.filter(name=ingredient["name"]).count()
+            self.assertEqual(count, 1)
+
+    def test_update_recipe_with_empty_ingredients(self):
+        """Test update recipe with empty ingredients."""
+        ingredient1 = Ingredient.objects.create(user=self.user, name="Sugar")
+        ingredient2 = Ingredient.objects.create(user=self.user, name="Salt")
+        recipe_data = self.valid_data.copy()
+        recipe = Recipe.objects.create(user=self.user, **recipe_data)
+        recipe.ingredients.set((ingredient1, ingredient2))
+        data = {"ingredients": []}
+        serializer = DetailRecipeSerializer(
+            recipe,
+            data=data,
+            partial=True,
+            context={"request": self.mocked_request},
+        )
+        serializer.is_valid(raise_exception=True)
+
+        serializer.save()
+
+        ingredients = recipe.ingredients.order_by("name")
+        self.assertFalse(ingredients.exists())

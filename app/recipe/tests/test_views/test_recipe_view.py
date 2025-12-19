@@ -6,7 +6,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from core.models import Recipe, Tag
+from core.models import Ingredient, Recipe, Tag
 
 
 def list_recipe_url():
@@ -297,4 +297,56 @@ class PrivateRecipeViewSetTestCase(APITestCase):
         self.assertSetEqual(
             {tag["name"] for tag in data["tags"]},
             {tag["name"] for tag in payload["tags"]},
+        )
+
+    def test_create_recipe_with_ingredients(self):
+        payload = {
+            "title": "Mozarilla",
+            "description": "Long description of Mozarilla",
+            "duration_minute": 5,
+            "price": "10.5",
+            "ingredients": [{"name": "Salt"}, {"name": "Spice"}],
+        }
+
+        res = self.client.post(list_recipe_url(), payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        recipe = Recipe.objects.get(user=self.user, title=payload["title"])
+        data = res.data  # type: ignore
+        ingredients = recipe.ingredients.order_by("name")
+        self.assertEqual(ingredients.count(), 2)
+        self.assertEqual(recipe.pk, data["id"])
+        self.assertSetEqual(
+            set(ingredients.values_list("name", flat=True)),
+            {ingredient["name"] for ingredient in payload["ingredients"]},
+        )
+        self.assertSetEqual(
+            {ingredient["name"] for ingredient in data["ingredients"]},
+            {ingredient["name"] for ingredient in payload["ingredients"]},
+        )
+
+    def test_update_recipe_with_ingredients(self):
+        ingredient1 = Ingredient.objects.create(user=self.user, name="Milk")
+        recipe = create_recipe(self.user)
+        recipe.ingredients.add(ingredient1)
+        payload = {
+            "ingredients": [{"name": ingredient1.name}, {"name": "Flour"}]
+        }
+
+        res = self.client.patch(
+            detail_recipe_url(recipe.pk), payload, format="json"
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        data = res.data  # type: ignore
+        ingredients = recipe.ingredients.order_by("name")
+        self.assertEqual(ingredients.count(), 2)
+        self.assertIn(ingredient1, ingredients)
+        self.assertSetEqual(
+            {ingredient["name"] for ingredient in payload["ingredients"]},
+            set(ingredients.values_list("name", flat=True)),
+        )
+        self.assertSetEqual(
+            {ingredient["name"] for ingredient in payload["ingredients"]},
+            {ingredient["name"] for ingredient in data["ingredients"]},
         )
