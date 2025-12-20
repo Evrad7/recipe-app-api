@@ -1,11 +1,14 @@
 from decimal import Decimal
+from io import BytesIO
 from typing import Any
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import QuerySet
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-
+from PIL import Image
 from core.models import Ingredient, Recipe, Tag
 
 
@@ -17,7 +20,11 @@ def detail_recipe_url(recipe_id):
     return reverse("recipe:recipe-detail", args=[recipe_id])
 
 
-def create_recipe(user, **kwargs: dict[str, Any]) -> Recipe:
+def detail_upload_image_recipe_url(recipe_id):
+    return reverse("recipe:recipe-upload_image", args=[recipe_id])
+
+
+def create_recipe(user, **kwargs: dict[str, Any | None]) -> Recipe:
 
     data: dict[str, Any] = {
         "title": "Pizza Capotchino",
@@ -350,3 +357,56 @@ class PrivateRecipeViewSetTestCase(APITestCase):
             {ingredient["name"] for ingredient in payload["ingredients"]},
             {ingredient["name"] for ingredient in data["ingredients"]},
         )
+
+
+@override_settings(MEDIA_ROOT="/tmp")
+class PrivateImageRecipeTestCase(APITestCase):
+
+    def setUp(self) -> None:
+        self.user = get_user_model().objects.create_user(
+            **{"email": "test@example.com", "password": "123xZPassword"}
+        )
+        self.recipe = create_recipe(user=self.user)
+
+        self.client.force_authenticate(self.user)
+
+    def tearDown(self) -> None:
+        self.recipe.image.delete(save=False)
+
+    def test_upload_image_recipe_with_success(self):
+        recipe = create_recipe(self.user, image=None)
+        buffer = BytesIO()
+        image = Image.new("RGB", (10, 10), color="green")
+        image.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        image = SimpleUploadedFile(
+            "test.png", buffer.getvalue(), content_type="image/png"
+        )
+        payload = {"image": image}
+
+        res = self.client.post(
+            detail_upload_image_recipe_url(recipe.pk),
+            payload,
+            format="multipart",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        data = res.data  # type: ignore
+        recipe.refresh_from_db()
+        self.assertIsNotNone(recipe.image)
+        self.assertIn(recipe.image.url, data["image"])
+        self.assertIn("uploads/recipes/", recipe.image.path)
+
+    def test_upload_image_recipe_with_invalid_data(self):
+        recipe = create_recipe(self.user)
+        payload = {}
+
+        res = self.client.post(
+            detail_upload_image_recipe_url(recipe.pk),
+            payload,
+            format="multipart",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("image", res.data)

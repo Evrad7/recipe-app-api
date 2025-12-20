@@ -50,6 +50,7 @@ class DetailRecipeSerializerTestCase(APITestCase):
             "link",
             "tags",
             "ingredients",
+            "image",
         }
         self.assertEqual(expected_fields, set(data.keys()))
 

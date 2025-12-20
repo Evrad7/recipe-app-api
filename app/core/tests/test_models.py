@@ -1,8 +1,12 @@
-from django.test import TestCase
+from pathlib import Path
+from unittest.mock import patch
+from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
 
+from core.models import generate_image_recipe_path
 
-class TestUser(TestCase):
+
+class TestUser(APITestCase):
 
     def test_create_user_with_email(self):
         email = "test@examble.com"
@@ -48,3 +52,15 @@ class TestUser(TestCase):
         self.assertTrue(user.is_active)
         self.assertTrue(user.is_staff)
         self.assertTrue(user.is_superuser)
+
+
+class TestRecipe(APITestCase):
+
+    @patch("core.models.uuid4")
+    def test_create_recipe_image_path_with_success(self, pactched_uuid4):
+        uuid = "testuuidx"
+        filename = "testfile.jpeg"
+        pactched_uuid4.return_value = uuid
+
+        path: Path = generate_image_recipe_path(None, filename)
+        self.assertEqual(f"uploads/recipes/{uuid}.jpeg", str(path))

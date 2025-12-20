@@ -134,7 +134,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+MEDIA_URL = "/media/"
+
+STATIC_ROOT = "/vol/web/static"
+MEDIA_ROOT = "/vol/web/media"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -156,4 +160,5 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "awesome Recepie API",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": True,
+    "COMPONENT_SPLIT_REQUEST": True,
 }

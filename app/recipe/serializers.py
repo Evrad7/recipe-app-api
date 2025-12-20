@@ -32,6 +32,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             "link",
             "tags",
             "ingredients",
+            "image",
         ]
         read_only_fields = ["id"]
         extra_kwargs = {"link": {"allow_blank": False}}
@@ -77,3 +78,12 @@ class DetailRecipeSerializer(RecipeSerializer):
         self._get_or_create_tags(instance, tags_data)
         self._get_or_create_ingredients(instance, ingredients_data)
         return instance
+
+
+class ImageRecipeSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Recipe
+        fields = ["id", "image"]
+        read_only_fields = ["id"]
+        extra_kwargs = {"image": {"required": True}}

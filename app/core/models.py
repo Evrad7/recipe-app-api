@@ -1,3 +1,5 @@
+from pathlib import Path
+from uuid import uuid4
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models  # noqa
@@ -16,7 +18,7 @@ class UserManager(BaseUserManager):
         self,
         email: str,
         password: str | None = None,
-        **extra_fields: dict[str, Any]
+        **extra_fields: dict[str, Any],
     ):
 
         if not email:
@@ -51,6 +53,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = "email"
 
 
+def generate_image_recipe_path(instance, filename) -> Path:
+    ext = Path(filename).suffix
+    uuid = uuid4()
+    path = Path(f"uploads/recipes/{uuid}{ext}")
+    return path
+
+
 class Recipe(models.Model):
 
     user = models.ForeignKey(
@@ -74,6 +83,11 @@ class Recipe(models.Model):
     tags = models.ManyToManyField("Tag", verbose_name=_("tags"))
     ingredients = models.ManyToManyField(
         "Ingredient", verbose_name=_("ingredients")
+    )
+    image = models.ImageField(
+        null=True,
+        upload_to=generate_image_recipe_path,
+        verbose_name=_("image"),
     )
 
     def __str__(self) -> str:

@@ -25,6 +25,7 @@ services:
       - 8000:8000
     volumes:
       - ./app:/app
+      - app_data:/vol/web
     environment:
       - DB_HOST=db
       - DB_PORT=5432
@@ -40,5 +41,6 @@ services:
 
 volumes:
   db_data:
+  app_data:
 
       

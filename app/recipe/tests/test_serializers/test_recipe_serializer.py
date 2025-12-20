@@ -49,6 +49,7 @@ class RecipeSerializerTestCase(APITestCase):
             "link",
             "tags",
             "ingredients",
+            "image",
         }
         self.assertEqual(expected_fields, set(data.keys()))
 
@@ -242,7 +243,7 @@ class RecipeSerializerTestCase(APITestCase):
         self.assertTrue(serializer.is_valid())
         self.assertNotIn("tags", serializer.data)
 
-    # ========== Tests de validation : tags ==========
+    # ========== Tests de validation : ingredients ==========
 
     def test_ingredients_not_required(self):
         """Test que les ingredients ne sont pas obligatoires."""
