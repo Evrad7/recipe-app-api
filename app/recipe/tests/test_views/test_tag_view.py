@@ -1,9 +1,10 @@
+from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from core.models import Tag
+from core.models import Recipe, Tag
 
 
 def list_tag_url():
@@ -119,7 +120,7 @@ class PrivateTagViewSetTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_destroy_tag_with_success(self):
-        """Test tha tag is can be deleted with success"""
+        """Test that tag is can be deleted with success"""
         tag = Tag.objects.create(user=self.user, name="Before meal")
 
         response = self.client.delete(detail_tag_url(tag.pk))
@@ -136,3 +137,65 @@ class PrivateTagViewSetTestCase(APITestCase):
         response = self.client.delete(detail_tag_url(tag.pk))
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_filter_tag_by_assigned_recipes(self):
+        """Test that only tags assigned with at least 1 recipe are returned"""
+        tag1 = Tag.objects.create(user=self.user, name="Europe")
+        tag2 = Tag.objects.create(user=self.user, name="America")
+        Tag.objects.create(user=self.user, name="Asia")
+
+        recipe1 = Recipe.objects.create(
+            user=self.user,
+            title="Pasta gold",
+            description="Awesome pasta ...",
+            duration_minute=20,
+            price=Decimal("8.2"),
+        )
+        recipe2 = Recipe.objects.create(
+            user=self.user,
+            title="Big mac burger",
+            description="Big burger begin ....",
+            duration_minute=8,
+            price=Decimal("15"),
+        )
+
+        recipe1.tags.add(tag1)
+        recipe2.tags.add(tag2)
+
+        res = self.client.get(list_tag_url(), {"assigned-only": 1})
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        expected_ids = {tag1.pk, tag2.pk}
+        ids = {item["id"] for item in res.data}
+        self.assertSetEqual(ids, expected_ids)
+
+    def test_filtered_tag_with_not_duplicate(self):
+        """Test that we have not duplicate_tag_with_filtering tags"""
+        tag1 = Tag.objects.create(user=self.user, name="Fast")
+        Tag.objects.create(user=self.user, name="Slow")
+
+        recipe1 = Recipe.objects.create(
+            user=self.user,
+            title="Pasta gold",
+            description="Awesome pasta ...",
+            duration_minute=20,
+            price=Decimal("8.2"),
+        )
+        recipe2 = Recipe.objects.create(
+            user=self.user,
+            title="Big mac burger",
+            description="Big burger begin ....",
+            duration_minute=8,
+            price=Decimal("15"),
+        )
+
+        recipe1.tags.add(tag1)
+        recipe2.tags.add(tag1)
+
+        res = self.client.get(list_tag_url(), {"assigned-only": 1})
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 1)
+        expected_ids = [tag1.pk]
+        ids = [item["id"] for item in res.data]
+        self.assertListEqual(ids, expected_ids)

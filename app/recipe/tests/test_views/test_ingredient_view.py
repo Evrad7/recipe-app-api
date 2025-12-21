@@ -1,9 +1,10 @@
+from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from core.models import Ingredient
+from core.models import Ingredient, Recipe
 
 
 def list_ingredient_url():
@@ -145,3 +146,67 @@ class PrivateIngredientViewSetTestCase(APITestCase):
         res = self.client.delete(detail_ingredient_url(ingredient.pk))
 
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_filter_ingredients_by_assigned_recipes(self):
+        """Test that only ingredients assigned with at
+        least 1 recipe are returned"""
+        ingredient1 = Ingredient.objects.create(user=self.user, name="Vanilla")
+        ingredient2 = Ingredient.objects.create(
+            user=self.user, name="Chocolate"
+        )
+        Ingredient.objects.create(user=self.user, name="Sugar")
+
+        recipe1 = Recipe.objects.create(
+            user=self.user,
+            title="Pasta gold",
+            description="Awesome pasta ...",
+            duration_minute=20,
+            price=Decimal("8.2"),
+        )
+        recipe2 = Recipe.objects.create(
+            user=self.user,
+            title="Big mac burger",
+            description="Big burger begin ....",
+            duration_minute=8,
+            price=Decimal("15"),
+        )
+
+        recipe1.ingredients.add(ingredient1)
+        recipe2.ingredients.add(ingredient2)
+
+        res = self.client.get(list_ingredient_url(), {"assigned-only": 1})
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        expected_ids = {ingredient1.pk, ingredient2.pk}
+        ids = {item["id"] for item in res.data}
+        self.assertSetEqual(ids, expected_ids)
+
+    def test_filtered_ingredients_with_not_duplicate(self):
+        """Test that we have not duplicate_tag_with_filtering tags"""
+        ingredient1 = Ingredient.objects.create(user=self.user, name="Salt")
+        Ingredient.objects.create(user=self.user, name="Oil")
+
+        recipe1 = Recipe.objects.create(
+            user=self.user,
+            title="Pasta gold",
+            description="Awesome pasta ...",
+            duration_minute=20,
+            price=Decimal("8.2"),
+        )
+        recipe2 = Recipe.objects.create(
+            user=self.user,
+            title="Big mac burger",
+            description="Big burger begin ....",
+            duration_minute=8,
+            price=Decimal("15"),
+        )
+
+        recipe1.ingredients.add(ingredient1)
+        recipe2.ingredients.add(ingredient1)
+
+        res = self.client.get(list_ingredient_url(), {"assigned-only": 1})
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        expected_ids = [ingredient1.pk]
+        ids = [item["id"] for item in res.data]
+        self.assertListEqual(ids, expected_ids)

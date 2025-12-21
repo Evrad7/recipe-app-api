@@ -24,7 +24,7 @@ def detail_upload_image_recipe_url(recipe_id):
     return reverse("recipe:recipe-upload_image", args=[recipe_id])
 
 
-def create_recipe(user, **kwargs: dict[str, Any | None]) -> Recipe:
+def create_recipe(user, **kwargs) -> Recipe:
 
     data: dict[str, Any] = {
         "title": "Pizza Capotchino",
@@ -109,7 +109,7 @@ class PrivateRecipeViewSetTestCase(APITestCase):
                 "duration_minute": 20,
                 "price": Decimal(5.9),
                 "link": "https://example.com",
-            }
+            },
         )
 
         response = self.client.get(list_recipe_url())
@@ -142,7 +142,7 @@ class PrivateRecipeViewSetTestCase(APITestCase):
                 "description": "description for pasta gold",
                 "duration_minute": 20,
                 "price": Decimal(5.9),
-            }
+            },
         )
 
         response = self.client.get(list_recipe_url())
@@ -357,6 +357,52 @@ class PrivateRecipeViewSetTestCase(APITestCase):
             {ingredient["name"] for ingredient in payload["ingredients"]},
             {ingredient["name"] for ingredient in data["ingredients"]},
         )
+
+    def test_filter_recipes_with_tags(self):
+        recipe1 = create_recipe(user=self.user, title="Tortillas milk")
+        recipe2 = create_recipe(user=self.user, title="Pasta gold")
+        create_recipe(user=self.user, title="Big mac burger")
+        tag1 = Tag.objects.create(user=self.user, name="Vegan")
+        tag2 = Tag.objects.create(user=self.user, name="Vegetarian")
+        recipe1.tags.add(tag1)
+        recipe2.tags.add(tag2)
+
+        params = {"tags": f"{tag1.pk},{tag2.pk}"}
+        res = self.client.get(list_recipe_url(), params)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        expected_ids = {recipe1.pk, recipe2.pk}
+        ids = {item["id"] for item in res.data}
+        self.assertSetEqual(expected_ids, ids)
+
+    def test_filter_ingredients_with_tags(self):
+        recipe1 = create_recipe(user=self.user, title="Tortillas milk")
+        recipe2 = create_recipe(user=self.user, title="Pasta gold")
+        create_recipe(user=self.user, title="Big mac burger")
+
+        ingredient1 = Ingredient.objects.create(user=self.user, name="Vanilla")
+        ingredient2 = Ingredient.objects.create(user=self.user, name="Salt")
+
+        recipe1.ingredients.add(ingredient1)
+        recipe2.ingredients.add(ingredient2)
+
+        params = {"ingredients": f"{ingredient1.pk},{ingredient2.pk}"}
+        res = self.client.get(list_recipe_url(), params)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        expected_ids = {recipe1.pk, recipe2.pk}
+        ids = {item["id"] for item in res.data}
+        self.assertSetEqual(expected_ids, ids)
+
+    def test_filter_with_invalid_query_params(self):
+        cases = [("tags", "zf,jk"), ("ingredients", "3.4")]
+        for query, value in cases:
+            with self.subTest(query=query, value=value):
+
+                res = self.client.get(list_recipe_url(), {query: value})
+
+                self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertIsNotNone(res.data)
 
 
 @override_settings(MEDIA_ROOT="/tmp")
